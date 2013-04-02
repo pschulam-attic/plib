@@ -54,14 +54,13 @@ def interpolate_models(*likelihood_lists, **kwargs):
     Returns a tuple of mixture weights that sum to 1.
 
     """
-    assert len(likelihood_lists) > 1
-    nmodels = len(likelihood_lists)
-    nwords = len(likelihood_lists[0])
-    assert all(nwords == len(l) for l in likelihood_lists)
-
     tol = kwargs.get('tol', 0.001)
     verbose = kwargs.get('verbose', False)
 
+    nmodels = len(likelihood_lists)
+    assert nmodels > 1
+    nwords = len(likelihood_lists[0])
+    assert all(nwords == len(l) for l in likelihood_lists)
     weights = [1. / nmodels] * nmodels
     converged = False
 
@@ -74,18 +73,16 @@ def interpolate_models(*likelihood_lists, **kwargs):
     while not converged:
         old_ll = log_likelihood(weights, likelihood_lists)
         new_weights = list(weights)
-        partition = [sum(w * p for w, p in zip(weights,probs))
-                     for probs in zip(*likelihood_lists)]
+        partitions = [sum(w * p for w, p in zip(weights,probs))
+                      for probs in zip(*likelihood_lists)]
         for i, likelihoods in enumerate(likelihood_lists):
             posterior = 0.0
-            w = weights[i]
             for j, p in enumerate(likelihoods):
-                posterior += (w * p) / partition[j]
-            posterior /= nwords
-            new_weights[i] = posterior
+                posterior += (weights[i] * p) / partitions[j]
+            new_weights[i] = posterior / nwords
 
         weights = new_weights
-        new_ll = log_likelihood(new_weights, likelihood_lists)
+        new_ll = log_likelihood(weights, likelihood_lists)
         if verbose:
             sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )\n'.format(new_ll, abs(new_ll-old_ll)))
         if abs(new_ll - old_ll) < tol:
