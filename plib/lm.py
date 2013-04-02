@@ -4,7 +4,7 @@ Utilities for working with language models.
 
 from itertools import chain as _chain
 
-def srilm_parse_ppl(stream):
+def parse_srilm_ppl(stream):
     """
     Parse a perplexity file produced by the SRILM toolkit at debugging
     level 2. Log probabilities are given in base 10.
@@ -31,7 +31,7 @@ def srilm_parse_ppl(stream):
         lines = s.strip().split('\n')
         sentence = lines[0].split() + ['</s>']
         word_probs = (parse_word_score(l) for l in lines if l.startswith('\t'))
-        return [tuple(_chain(w, wp)) for w, wp in zip(sentence, word_probs)]
+        return [(w,wlm,ll) for w, (wlm, ll) in zip(sentence, word_probs)]
 
     def parse_summary(s, NSENTS=2, NWORDS=4, LPROB=3, PPL=5):
         corpus_summary, model_summary = s.strip().split('\n')
