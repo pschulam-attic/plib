@@ -2,6 +2,8 @@
 Utilities for working with language models.
 """
 
+from itertools import chain
+
 def srilm_parse_ppl(stream):
     """
     Parse a perplexity file produced by the SRILM toolkit at debugging
@@ -10,7 +12,7 @@ def srilm_parse_ppl(stream):
     Returns a 2-tuple, with entries:
 
       (1) List of sentence_scores, where a sentence score is a list of
-      tuples that can be destructured using (word, (lmword, ll)). Word
+      tuples that can be destructured using (word, lmword, ll). Word
       is the word from the original sentence, lmword is the word that
       was seen by the LM (could be <unk> for example), and ll is the
       log-likelihood (base 10).
@@ -29,7 +31,7 @@ def srilm_parse_ppl(stream):
         lines = s.strip().split('\n')
         sentence = lines[0].split() + ['</s>']
         word_probs = (parse_word_score(l) for l in lines if l.startswith('\t'))
-        return zip(sentence, word_probs)
+        return [tuple(chain(w, wp)) for w, wp in zip(sentence, word_probs)]
 
     def parse_summary(s, NSENTS=2, NWORDS=4, LPROB=3, PPL=5):
         corpus_summary, model_summary = s.strip().split('\n')
