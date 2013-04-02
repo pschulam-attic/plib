@@ -41,7 +41,7 @@ def parse_srilm_ppl(stream):
     sentence_scores = [parse_sentence_score(s) for s in chunks[:-1]]
     return sentence_scores
 
-def interpolate_models(*likelihood_lists, tol=1e-3, verbose=False):
+def interpolate_models(*likelihood_lists, **kwargs):
     """
     Use likelihood predictions from a collection of models to compute
     the optimal mixture weights.
@@ -59,12 +59,15 @@ def interpolate_models(*likelihood_lists, tol=1e-3, verbose=False):
     nwords = len(likelihood_lists[0])
     assert all(nwords == len(l) for l in likelihood_lists)
 
+    tol = kwargs.get('tol', 0.001)
+    verbose = kwargs.get('verbose', False)
+
     weights = [1. / nmodels] * nmodels
     converged = False
 
     def log_likelihood(weights, likelihood_lists):
         ll = 0.0
-        for probs in zip(likelihood_lists):
+        for probs in zip(*likelihood_lists):
             ll += math.log(sum(w * p for w, p in zip(weights, probs)), 10)
         return ll
 
@@ -72,7 +75,7 @@ def interpolate_models(*likelihood_lists, tol=1e-3, verbose=False):
         old_ll = log_likelihood(weights, likelihood_lists)
         new_weights = list(weights)
         partition = [sum(w * p for w, p in zip(weights,probs))
-                     for probs in zip(likelihood_lists)]
+                     for probs in zip(*likelihood_lists)]
         for i, likelihoods in enumerate(likelihood_lists):
             posterior = 0.0
             w = weights[i]
@@ -84,7 +87,7 @@ def interpolate_models(*likelihood_lists, tol=1e-3, verbose=False):
         weights = new_weights
         new_ll = log_likelihood(new_weights, likelihood_lists)
         if verbose:
-            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )'.format(new_ll, abs(new_ll-old_ll))
+            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )\n'.format(new_ll, abs(new_ll-old_ll)))
         if abs(new_ll - old_ll) < tol:
             converged = True
 
