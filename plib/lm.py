@@ -2,6 +2,8 @@
 Utilities for working with language models.
 """
 
+import math
+import sys
 from itertools import chain as _chain
 
 def ppl(lls, base=10):
@@ -38,3 +40,52 @@ def parse_srilm_ppl(stream):
     chunks = stream.read().strip().split('\n\n')
     sentence_scores = [parse_sentence_score(s) for s in chunks[:-1]]
     return sentence_scores
+
+def interpolate_models(*likelihood_lists, tol=1e-3, verbose=False):
+    """
+    Use likelihood predictions from a collection of models to compute
+    the optimal mixture weights.
+
+    The likelihood lists passed as input should all be of the same
+    length (corresponding to predictions of the same word with the
+    same history) and should be probabilities (i.e. not log
+    probabilities).
+
+    Returns a tuple of mixture weights that sum to 1.
+
+    """
+    assert len(likelihood_lists) > 1
+    nmodels = len(likelihood_lists)
+    nwords = len(likelihood_lists[0])
+    assert all(nwords == len(l) for l in likelihood_lists)
+
+    weights = [1. / nmodels] * nmodels
+    converged = False
+
+    def log_likelihood(weights, likelihood_lists):
+        ll = 0.0
+        for probs in zip(likelihood_lists):
+            ll += math.log(sum(w * p for w, p in zip(weights, probs)), 10)
+        return ll
+
+    while not converged:
+        old_ll = log_likelihood(weights, likelihood_lists)
+        new_weights = list(weights)
+        partition = [sum(w * p for w, p in zip(weights,probs))
+                     for probs in zip(likelihood_lists)]
+        for i, likelihoods in enumerate(likelihood_lists):
+            posterior = 0.0
+            w = weights[i]
+            for j, p in enumerate(likelihoods):
+                posterior += (w * p) / partition[j]
+            posterior /= nwords
+            new_weights[i] = posterior
+
+        weights = new_weights
+        new_ll = log_likelihood(new_weights, likelihood_lists)
+        if verbose:
+            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )'.format(new_ll, abs(new_ll-old_ll))
+        if abs(new_ll - old_ll) < tol:
+            converged = True
+
+    return weights
