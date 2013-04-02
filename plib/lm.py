@@ -2,7 +2,7 @@
 Utilities for working with language models.
 """
 
-from itertools import chain
+from itertools import chain as _chain
 
 def srilm_parse_ppl(stream):
     """
@@ -31,14 +31,14 @@ def srilm_parse_ppl(stream):
         lines = s.strip().split('\n')
         sentence = lines[0].split() + ['</s>']
         word_probs = (parse_word_score(l) for l in lines if l.startswith('\t'))
-        return [tuple(chain(w, wp)) for w, wp in zip(sentence, word_probs)]
+        return [tuple(_chain(w, wp)) for w, wp in zip(sentence, word_probs)]
 
     def parse_summary(s, NSENTS=2, NWORDS=4, LPROB=3, PPL=5):
         corpus_summary, model_summary = s.strip().split('\n')
         nsents = corpus_summary.split()[NSENTS]
         nwords = corpus_summary.split()[NWORDS]
         ll = float(model_summary.split()[LPROB])
-        ppl = flat(model_summary.split()[PPL])
+        ppl = float(model_summary.split()[PPL])
         return dict(nsents=nsents, nwords=nwords, ll=ll, ppl=ppl)
 
     chunks = stream.read().strip().split('\n\n')
