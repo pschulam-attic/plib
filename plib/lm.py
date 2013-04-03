@@ -129,10 +129,10 @@ class CacheModel(object):
     def log_prob(self, w):
         if len(self.cache) == 0:
             self.cache.append(w)
-            return -inf
+            return -float('inf')
         elif self.cache.count(w) == 0:
             self.cache.append(w)
-            return -inf
+            return -float('inf')
         else:
             log_prob = math.log10(float(self.cache.count(w))
                                   / len(self.cache))
