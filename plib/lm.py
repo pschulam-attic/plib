@@ -5,7 +5,6 @@ Utilities for working with language models.
 import math
 import numpy as np
 import sys
-from itertools import chain as _chain
 
 def ppl(lls, base=10):
     """
