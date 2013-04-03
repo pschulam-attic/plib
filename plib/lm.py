@@ -76,4 +76,4 @@ def interpolate_models(*likelihood_lists, **kwargs):
         if abs(new_ll-old_ll) < tol:
             converged = True
 
-    return list(weights)
+    return tuple(weights)
