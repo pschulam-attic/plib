@@ -2,6 +2,7 @@
 Utilities for working with language models.
 """
 
+import kenlm
 import math
 import numpy as np
 import sys
@@ -70,9 +71,51 @@ def interpolate_models(*likelihood_lists, **kwargs):
         new_ll = np.log10(likelihoods.dot(weights)).sum()
 
         if verbose:
-            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )\n'.\
+            sys.stderr.write('interpolate_models: LL= {:.4f} ( delta= {:.4f} )\n'.\
                                  format(new_ll, abs(new_ll-old_ll)))
         if abs(new_ll-old_ll) < tol:
             converged = True
 
+    if verbose:
+        sys.stderr.write('interpolate_models: weights= {}\n'.\
+                             format(tuple(weights)))
     return tuple(weights)
+
+class ArpaLanguageModel(object):
+    def __init__(self, arpa_file):
+        self._path = arpa_file
+        self._arpa_lm = kenlm.LanguageModel(arpa_file)
+        self._total_likelihood = 0.0
+
+    def log_prob(self, sentence, full=False):
+        """
+        Compute the log probability (base 10) of the
+        sentence. Sentence can either be a string containing
+        space-separated tokens, or a sequence of tokens.
+
+        If full=True, the function returns a list of log
+        probabilities, one for each token plus an additional
+        likelihood for the end of sentence. If full=False a single log
+        likelihood is returned.
+
+        """
+        if full:
+            score_fn = lambda s: [x[0] for x in self._arpa_lm.full_scores(s)]
+        else:
+            score_fn = self._arpa_lm.score
+
+        if isinstance(sentence, str):
+            self._total_likelihood += self._arpa_lm.score(sentence)
+            return score_fn(sentence)
+        else:
+            self._total_likelihood += self._arpa_lm.score(' '.join(sentence))
+            return score_fn(' '.join(sentence))
+
+    def total_likelihood(self):
+        return self._total_likelihood
+
+    def reset(self):
+        self._total_likelihood = 0.0
+
+    def __repr__(self):
+        return 'ArpaLanguageModel(path={})'.format(self._path)
