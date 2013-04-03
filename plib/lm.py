@@ -6,6 +6,7 @@ import kenlm
 import math
 import numpy as np
 import sys
+from collections import deque
 
 def ppl(lls, base=10):
     """
