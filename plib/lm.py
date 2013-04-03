@@ -3,6 +3,7 @@ Utilities for working with language models.
 """
 
 import math
+import numpy as np
 import sys
 from itertools import chain as _chain
 
@@ -57,35 +58,22 @@ def interpolate_models(*likelihood_lists, **kwargs):
     tol = kwargs.get('tol', 0.001)
     verbose = kwargs.get('verbose', False)
 
-    nmodels = len(likelihood_lists)
-    assert nmodels > 1
-    nwords = len(likelihood_lists[0])
-    assert all(nwords == len(l) for l in likelihood_lists)
-    weights = [1. / nmodels] * nmodels
+    likelihoods = np.array(zip(*likelihood_lists))
+    nwords, nmodels = likelihoods.shape
+    weights = np.ones(nmodels) / nmodels
     converged = False
 
-    def log_likelihood(weights, likelihood_lists):
-        ll = 0.0
-        for probs in zip(*likelihood_lists):
-            ll += math.log(sum(w * p for w, p in zip(weights, probs)), 10)
-        return ll
-
     while not converged:
-        old_ll = log_likelihood(weights, likelihood_lists)
-        new_weights = list(weights)
-        partitions = [sum(w * p for w, p in zip(weights,probs))
-                      for probs in zip(*likelihood_lists)]
-        for i, likelihoods in enumerate(likelihood_lists):
-            posterior = 0.0
-            for j, p in enumerate(likelihoods):
-                posterior += (weights[i] * p) / partitions[j]
-            new_weights[i] = posterior / nwords
+        old_ll = np.log10(likelihoods.dot(weights)).sum()
+        partition = likelihoods.dot(weights)
+        posterior = (likelihoods.dot(np.diag(weights)).T / partition).T
+        weights = posterior.sum(axis=0) / nwords
+        new_ll = np.log10(likelihoods.dot(weights)).sum()
 
-        weights = new_weights
-        new_ll = log_likelihood(weights, likelihood_lists)
         if verbose:
-            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )\n'.format(new_ll, abs(new_ll-old_ll)))
-        if abs(new_ll - old_ll) < tol:
+            sys.stderr.write('interpolate: LL= {:.4f} ( delta= {:.4f} )\n'.\
+                                 format(new_ll, abs(new_ll-old_ll)))
+        if abs(new_ll-old_ll) < tol:
             converged = True
 
-    return weights
+    return list(weights)
