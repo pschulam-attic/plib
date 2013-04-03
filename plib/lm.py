@@ -119,3 +119,27 @@ class ArpaLanguageModel(object):
 
     def __repr__(self):
         return 'ArpaLanguageModel(path={})'.format(self._path)
+
+class CacheModel(object):
+    def __init__(self, size):
+        self.size = size
+        self.cache = deque(maxlen=size)
+
+    def log_prob(self, w):
+        if len(self.cache) == 0:
+            self.cache.append(w)
+            return -inf
+        elif self.cache.count(w) == 0:
+            self.cache.append(w)
+            return -inf
+        else:
+            log_prob = math.log10(float(self.cache.count(w))
+                                  / len(self.cache))
+            self.cache.append(w)
+            return log_prob
+
+    def reset(self): self.cache.clear()
+
+    def __repr__(self):
+        return 'CacheModel(len={}, size={})'.\
+            format(len(self.cache), self.size)
