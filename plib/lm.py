@@ -5,6 +5,7 @@ Utilities for working with language models.
 import kenlm
 import math
 import numpy as np
+import os
 import sys
 from collections import deque
 
@@ -84,7 +85,7 @@ def interpolate_models(*likelihood_lists, **kwargs):
 
 class ArpaLanguageModel(object):
     def __init__(self, arpa_file):
-        self._path = arpa_file
+        self._path = os.path.abspath(arpa_file)
         self._arpa_lm = kenlm.LanguageModel(arpa_file)
         self._total_likelihood = 0.0
 
@@ -144,3 +145,37 @@ class CacheModel(object):
     def __repr__(self):
         return 'CacheModel(len={}, size={})'.\
             format(len(self.cache), self.size)
+
+class StackModel(object):
+    def __init__(self, size=100):
+        self.stack = []
+        self.size = size
+        self.push()
+
+    def push(self):
+        self.stack.append(deque(maxlen=self.size))
+
+    def pop(self):
+        assert self.depth > 1
+        self.stack.pop()
+
+    def reset(self):
+        self.stack = []
+        self.push()
+
+    def log_prob(self, w):
+        totals = [len(c) for c in self.stack]
+        counts = [c.count(w) for c in self.stack]
+        if sum(totals) == 0 or sum(counts) == 0:
+            self.stack[-1].append(w)
+            return - float('inf')
+        else:
+            # reweight the counts
+            totals = [i * t for i, t in enumerate(totals, 1)]
+            counts = [i * c for i, c in enumerate(counts, 1)]
+            lprob = math.log10(float(sum(counts)) / sum(totals))
+            self.stack[-1].append(w)
+            return lprob
+
+    def __repr__(self):
+        return 'StackModel(size={})'.format(self.size)
