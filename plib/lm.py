@@ -156,7 +156,7 @@ class StackModel(object):
         self.stack.append(deque(maxlen=self.size))
 
     def pop(self):
-        assert self.depth > 1
+        assert len(self.stack) > 1
         self.stack.pop()
 
     def reset(self):
